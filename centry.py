@@ -1,3 +1,4 @@
+import datetime
 import re
 
 #FIXME: We use { and } as delimiters when converting an entry to a string,
@@ -8,7 +9,7 @@ class CEntry(object):
     def __init__(self, from_string=""):
         self.type = ""
         self.uid = ""
-        self.date = ""
+        self.date = datetime.date.today()
         self.amount = 0.0
         self.description = ""
 
@@ -21,13 +22,13 @@ class CEntry(object):
                                      self.description)
 
     def takeFromString(self, s):
-        m = re.compile("([^ ]+) ([^ ]+) ([^ ]+) {([^}]*)} (.*)").match(s)
+        m = re.compile("([^ ]+) (\\d\\d)-(\\d\\d)-(\\d\\d) ([^ ]+) {([^}]*)} (.*)").match(s)
 
         self.uid = m.group(1)
-        self.date = m.group(2)
-        self.amount = float(m.group(3))
-        self.type = m.group(4)
-        self.description = m.group(5)
+        self.date = datetime.date(int(m.group(2)), int(m.group(3)), int(m.group(4)))
+        self.amount = float(m.group(5))
+        self.type = m.group(6)
+        self.description = m.group(7)
 
 
 def CEntryFromQFX(qfx_stmttrn):
@@ -48,7 +49,7 @@ def CEntryFromQFX(qfx_stmttrn):
         if match:
             m = match.group(1)
             d = match.group(2)
-    c.date = "%s/%s/%s" % (m, d, y)
+    c.date = datetime.date(int(y), int(m), int(d))
 
     # amount
     c.amount = float(qfx_stmttrn["TRNAMT"])
