@@ -1,3 +1,7 @@
+
+#TODO: Some NAME and MEMO fields hame "&amp;" strings in there to represent &
+#      Replace with a single &
+
 def parseTransactionsFromFile(path):
     """
     Parse the transactions out of a QFX file.
