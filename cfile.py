@@ -1,3 +1,5 @@
+import re
+
 import centry
 
 
@@ -8,7 +10,7 @@ def loadFromFile(path):
 
     types = []
     entries = []
-    autotypes = []
+    autotypes = {}
 
     for line in fp:
         line = line.strip()
@@ -20,10 +22,11 @@ def loadFromFile(path):
             types.append(line[4:].strip())
 
         elif line.upper().startswith("ENTRY"):
-            entries.append(centry.CEntry(line[6:].strip()))
+            entries.append(centry.CEntry(line[5:].strip()))
 
         elif line.upper().startswith("AUTOTYPE"):
-            pass #TODO: ...
+            m = re.compile("{([^}]+)} (.+)").match(line[8:].strip())
+            autotypes[m.group(2).strip()] = m.group(1)
 
         else:
             raise Exception("invalid line")
@@ -44,7 +47,7 @@ def writeToFile(path, types, entries, autotypes):
     for e in entries:
         fp.write("ENTRY %s\n" % str(e))
 
-    for a in autotypes:
-        fp.write("AUTOTYPE %s\n" % str(a))
+    for regex, type_ in autotypes.iteritems():
+        fp.write("AUTOTYPE {%s} %s\n" % (type_, regex))
 
     fp.close()
