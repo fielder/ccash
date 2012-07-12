@@ -22,7 +22,7 @@ class CEntry(object):
                                      self.description)
 
     def takeFromString(self, s):
-        m = re.compile("([^ ]+) (\\d\\d)-(\\d\\d)-(\\d\\d) ([^ ]+) {([^}]*)} (.*)").match(s)
+        m = re.compile("([^ ]+) (\\d\\d\\d\\d)-(\\d\\d)-(\\d\\d) ([^ ]+) {([^}]*)} (.*)").match(s)
 
         self.uid = m.group(1)
         self.date = datetime.date(int(m.group(2)), int(m.group(3)), int(m.group(4)))
