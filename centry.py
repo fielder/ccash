@@ -11,6 +11,9 @@ class CEntry(object):
     etc.
     """
 
+    # what each entry has
+    ATTRIBUTES = ["type", "uid", "date", "amount", "description"]
+
     def __init__(self, from_string=""):
         self.type = ""
         self.uid = ""

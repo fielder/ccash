@@ -12,8 +12,8 @@ import cfile
 class TypesDockWidget(QtGui.QWidget):
     typesDeleted = QtCore.pyqtSignal(list)
 
-    def __init__(self, parent=None):
-        super(TypesDockWidget, self).__init__(parent=parent)
+    def __init__(self):
+        super(TypesDockWidget, self).__init__()
 
         self.table = None
 
@@ -93,87 +93,170 @@ class TypesDockWidget(QtGui.QWidget):
             self._appendRow(name, regex)
 
 
-class TypesDockController(object):
-    def __init__(self):
-        self.dock = QtGui.QDockWidget()
+class TypesDockController(QtCore.QObject):
+    typesDeleted = QtCore.pyqtSignal(list)
 
+    def __init__(self):
+        super(TypesDockController, self).__init__()
+
+        self.dock = QtGui.QDockWidget()
         self.dock.setWidget(TypesDockWidget())
-        self.dock.widget().typesDeleted.connect(self._typesDeleted)
+        self.dock.widget().typesDeleted.connect(self.typesDeleted.emit)
 
     @property
     def types(self):
         return self.dock.widget().types
 
-    def _typesDeleted(self, typenames):
-#       print typenames
-#       print self.types
-        pass
+    def populate(self, types):
+        self.dock.widget().populate(types)
+
+
+class TableController(QtCore.QObject):
+    def __init__(self):
+        super(TableController, self).__init__()
+
+        self.table = QtGui.QTableWidget()
+
+    def _columnIndexForLabel(self, label):
+        col_titles = [str(self.table.horizontalHeaderItem(col).text()) for col in xrange(self.table.columnCount())]
+        return col_titles.index(label)
+
+    def populate(self, entries):
+        while self.table.columnCount() > 0:
+            self.table.removeColumn(0)
+        while self.table.rowCount() > 0:
+            self.table.removeRow(0)
+
+        if entries:
+            for idx, attr in enumerate(entries[0].ATTRIBUTES):
+                self.table.insertColumn(idx)
+                self.table.setHorizontalHeaderItem(idx, QtGui.QTableWidgetItem(attr))
+
+        for e in entries:
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            #TODO: ...
+#           self.table.setItem(row, 0, QtGui.QTableWidgetItem(typename))
+#           self.table.setItem(row, 1, QtGui.QTableWidgetItem(regex))
 
 
 class MainWin(QtGui.QMainWindow):
-    def __init__(self, parent=None):
-        super(MainWin, self).__init__(parent=parent)
+    newFile = QtCore.pyqtSignal()
+    openFile = QtCore.pyqtSignal()
+    closeFile = QtCore.pyqtSignal()
+    saveFile = QtCore.pyqtSignal()
+    saveFileAs = QtCore.pyqtSignal()
+    addEntries = QtCore.pyqtSignal()
 
-        self.table = None
-        self.dock_cont = None
-
-        # Dock
-        self.dock_cont = TypesDockController()
-        self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.dock_cont.dock)
+    def __init__(self, table, dock):
+        super(MainWin, self).__init__()
 
         # Main table
-        self.table = QtGui.QTableWidget(2, 2)
-        self.setCentralWidget(self.table)
+        self.setCentralWidget(table)
+
+        # Dock
+        self.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
 
         # Menus
         m = self.menuBar().addMenu("&File")
         a = m.addAction("&New")
+        a.triggered.connect(self.newFile.emit)
+        a = m.addAction("&Open")
+        a.triggered.connect(self.openFile.emit)
         a = m.addAction("&Close")
+        a.triggered.connect(self.closeFile.emit)
         m.addSeparator()
         a = m.addAction("&Save")
+        a.triggered.connect(self.saveFile.emit)
         a = m.addAction("Save &As...")
+        a.triggered.connect(self.saveFileAs.emit)
         m.addSeparator()
         a = m.addAction("E&xit")
         a.triggered.connect(self.close)
 
         m = self.menuBar().addMenu("&Edit")
+        a = m.addAction("&Add Entries")
+        a.triggered.connect(self.addEntries.emit)
 
         m = self.menuBar().addMenu("&View")
         a = m.addAction("&Types")
-        a.triggered.connect(self.dock_cont.dock.show)
+        a.triggered.connect(dock.show)
 
+        # Window stuff
         self.setWindowTitle("CCash")
-        self.resize(640, 480)
+        self.resize(800, 600)
         self.show()
 
 
 class MainCont(object):
     def __init__(self):
-        self._types = collections.OrderedDict()
-        self._entries = []
+        # Main table controller
+        self.table_cont = TableController()
 
-        self._win = MainWin()
+        # Types dock controller
+        self.types_cont = TypesDockController()
+        self.types_cont.typesDeleted.connect(self._typesDeleted)
+
+        # Main window signals
+        self._win = MainWin(self.table_cont.table, self.types_cont.dock)
+        self._win.newFile.connect(self._newFile)
+        self._win.openFile.connect(self._openFile)
+        self._win.closeFile.connect(self._closeFile)
+        self._win.saveFile.connect(self._saveFile)
+        self._win.saveFileAs.connect(self._saveFileAs)
+        self._win.addEntries.connect(self._addEntries)
+
+    def _resetUI(self):
+        self.table_cont.populate([])
+        self.types_cont.populate({})
+
+    def _typesDeleted(self, typenames):
+        #TODO: unset entry types that had their type deleted
+        pass
 
     def load(self, path):
         types, entries = cfile.loadFromFile(path)
 
-        self.close()
+        self._resetUI()
 
-        self._types = types
-        self._entries = entries
+        self.table_cont.populate(entries)
+        self.types_cont.populate(types)
 
-        self._populateGUI()
+    def _confirmIfChanges(self):
+        #TODO: prompt if the user has made changes
+        return True
 
-    def close(self):
-        self._types.clear()
-        self._entries = []
+    def _newFile(self):
+        if not self._confirmIfChanges():
+            return
 
-        self._teardownGUI()
+        self._resetUI()
 
-    def _teardownGUI(self):
+    def _openFile(self):
+        if not self._confirmIfChanges():
+            return
+
+        #TODO: get the path
+        #TODO: if cancel, return
+
+        self.load(path)
+
+    def _closeFile(self):
+        if not self._confirmIfChanges():
+            return
+
+        self._resetUI()
+
+    def _saveFile(self):
+        #TODO: ...
         pass
 
-    def _populateGUI(self):
+    def _saveFileAs(self):
+        #TODO: ...
+        pass
+
+    def _addEntries(self):
+        #TODO: ...
         pass
 
 
