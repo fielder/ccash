@@ -6,6 +6,11 @@ import re
 
 
 class CEntry(object):
+    """
+    A transaction entry. Just some info on a single purchase, transfer, deposit,
+    etc.
+    """
+
     def __init__(self, from_string=""):
         self.type = ""
         self.uid = ""
@@ -32,6 +37,10 @@ class CEntry(object):
 
 
 def CEntryFromQFX(qfx_stmttrn):
+    """
+    Make a CEntry from a QFX statement transaction.
+    """
+
     c = CEntry()
 
     # unique identifier
