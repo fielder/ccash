@@ -8,9 +8,8 @@ def loadFromFile(path):
     if fp.readline().strip() != "CCASH":
         raise Exception("\"%s\" is not a valid file" % path)
 
-    types = []
+    types = {}
     entries = []
-    autotypes = {}
 
     for line in fp:
         line = line.strip()
@@ -19,35 +18,32 @@ def loadFromFile(path):
             continue
 
         if line.upper().startswith("TYPE"):
-            types.append(line[4:].strip())
+            m = re.compile("{([^}]+)}(.*)").match(line[4:].strip())
+            types[m.group(1).strip()] = m.group(2).strip()
 
         elif line.upper().startswith("ENTRY"):
             entries.append(centry.CEntry(line[5:].strip()))
-
-        elif line.upper().startswith("AUTOTYPE"):
-            m = re.compile("{([^}]+)} (.+)").match(line[8:].strip())
-            autotypes[m.group(2).strip()] = m.group(1)
 
         else:
             raise Exception("invalid line")
 
     fp.close()
 
-    return (types, entries, autotypes)
+    return (types, entries)
 
 
-def writeToFile(path, types, entries, autotypes):
+def writeToFile(path, types, entries):
     fp = open(path, "w")
 
     fp.write("CCASH\n")
 
-    for t in types:
-        fp.write("TYPE %s\n" % str(t))
+    for type_name, type_regex in types.iteritems():
+        if type_regex:
+            fp.write("TYPE {%s} %s\n" % (type_name, type_regex))
+        else:
+            fp.write("TYPE {%s}\n" % type_name)
 
     for e in entries:
         fp.write("ENTRY %s\n" % str(e))
-
-    for regex, type_ in autotypes.iteritems():
-        fp.write("AUTOTYPE {%s} %s\n" % (type_, regex))
 
     fp.close()
