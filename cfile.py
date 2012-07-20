@@ -1,4 +1,5 @@
 import re
+import collections
 
 import centry
 
@@ -8,7 +9,7 @@ def loadFromFile(path):
     if fp.readline().strip() != "CCASH":
         raise Exception("\"%s\" is not a valid file" % path)
 
-    types = {}
+    types = collections.OrderedDict()
     entries = []
 
     for line in fp:
