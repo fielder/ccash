@@ -87,7 +87,8 @@ class TypesDockWidget(QtGui.QWidget):
         return ret
 
     def populate(self, types):
-        self.table.clear()
+        while self.table.rowCount() > 0:
+            self.table.removeRow(0)
 
         for name, regex in types.iteritems():
             self._appendRow(name, regex)
