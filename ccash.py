@@ -7,6 +7,8 @@ from PyQt4 import QtCore
 from PyQt4 import QtGui
 
 import cfile
+import centry
+import qfx
 
 
 class TypesDockWidget(QtGui.QWidget):
@@ -86,10 +88,11 @@ class TypesDockWidget(QtGui.QWidget):
 
         return ret
 
-    def populate(self, types):
+    def clear(self):
         while self.table.rowCount() > 0:
             self.table.removeRow(0)
 
+    def addTypes(self, types):
         for name, regex in types.iteritems():
             self._appendRow(name, regex)
 
@@ -108,8 +111,11 @@ class TypesDockController(QtCore.QObject):
     def types(self):
         return self.dock.widget().types
 
-    def populate(self, types):
-        self.dock.widget().populate(types)
+    def clear(self):
+        self.dock.widget().clear()
+
+    def addTypes(self, types):
+        self.dock.widget().addTypes(types)
 
 
 class TableController(QtCore.QObject):
@@ -118,27 +124,45 @@ class TableController(QtCore.QObject):
 
         self.table = QtGui.QTableWidget()
 
-    def _columnIndexForLabel(self, label):
-        col_titles = [str(self.table.horizontalHeaderItem(col).text()) for col in xrange(self.table.columnCount())]
-        return col_titles.index(label)
+    def _columnTitles(self):
+        return [str(self.table.horizontalHeaderItem(col).text()) for col in xrange(self.table.columnCount())]
 
-    def populate(self, entries):
+    def _columnIndexForLabel(self, label):
+        return self._columnTitles().index(label)
+
+    def clear(self):
         while self.table.columnCount() > 0:
             self.table.removeColumn(0)
         while self.table.rowCount() > 0:
             self.table.removeRow(0)
 
+    def addEntries(self, entries):
         if entries:
-            for idx, attr in enumerate(entries[0].ATTRIBUTES):
-                self.table.insertColumn(idx)
-                self.table.setHorizontalHeaderItem(idx, QtGui.QTableWidgetItem(attr))
+            for attr in entries[0].ATTRIBUTES:
+                if attr not in self._columnTitles():
+                    col_idx = len(self._columnTitles())
+                    self.table.insertColumn(col_idx)
+                    self.table.setHorizontalHeaderItem(col_idx, QtGui.QTableWidgetItem(attr))
 
         for e in entries:
+            #TODO: ensure we don't add repeated entries
+
             row = self.table.rowCount()
             self.table.insertRow(row)
+
+            for attr in e.ATTRIBUTES:
+                self.table.setItem(row, self._columnIndexForLabel(attr),
+                                   QtGui.QTableWidgetItem(str(getattr(e, attr))))
+
+    @property
+    def entries(self):
+        ret = []
+
+        for row in xrange(self.table.rowCount()):
             #TODO: ...
-#           self.table.setItem(row, 0, QtGui.QTableWidgetItem(typename))
-#           self.table.setItem(row, 1, QtGui.QTableWidgetItem(regex))
+            pass
+
+        return ret
 
 
 class MainWin(QtGui.QMainWindow):
@@ -201,15 +225,15 @@ class MainCont(object):
         # Main window signals
         self._win = MainWin(self.table_cont.table, self.types_cont.dock)
         self._win.newFile.connect(self._newFile)
-        self._win.openFile.connect(self._openFile)
+        self._win.openFile.connect(self._loadFromPath)
         self._win.closeFile.connect(self._closeFile)
         self._win.saveFile.connect(self._saveFile)
         self._win.saveFileAs.connect(self._saveFileAs)
-        self._win.addEntries.connect(self._addEntries)
+        self._win.addEntries.connect(self._addEntriesFromQFX)
 
     def _resetUI(self):
-        self.table_cont.populate([])
-        self.types_cont.populate({})
+        self.table_cont.clear()
+        self.types_cont.clear()
 
     def _typesDeleted(self, typenames):
         #TODO: unset entry types that had their type deleted
@@ -220,8 +244,8 @@ class MainCont(object):
 
         self._resetUI()
 
-        self.table_cont.populate(entries)
-        self.types_cont.populate(types)
+        self.table_cont.addEntries(entries)
+        self.types_cont.addTypes(types)
 
     def _confirmIfChanges(self):
         #TODO: prompt if the user has made changes
@@ -233,12 +257,15 @@ class MainCont(object):
 
         self._resetUI()
 
-    def _openFile(self):
+    def _loadFromPath(self):
         if not self._confirmIfChanges():
             return
 
-        #TODO: get the path
-        #TODO: if cancel, return
+        path = QtGui.QFileDialog.getOpenFileName(parent=self._win,
+                                                 caption="Open File",
+                                                 filter="CCash (*.ccash)")
+        if not path:
+            return
 
         self.load(path)
 
@@ -256,9 +283,16 @@ class MainCont(object):
         #TODO: ...
         pass
 
-    def _addEntries(self):
-        #TODO: ...
-        pass
+    def _addEntriesFromQFX(self):
+        path = QtGui.QFileDialog.getOpenFileName(parent=self._win,
+                                                 caption="Open File",
+                                                 filter="QFX (*.qfx)")
+        if not path:
+            return
+
+        entries = [centry.CEntryFromQFX(qfx_stmttrn) for qfx_stmttrn in qfx.parseTransactionsFromFile(path)]
+
+        self.table_cont.addEntries(entries)
 
 
 if __name__ == "__main__":
