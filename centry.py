@@ -1,5 +1,6 @@
 import datetime
 import re
+import types
 
 #FIXME: We use { and } as delimiters when converting an entry to a string,
 #       but don't worry about escaping. This breaks the reverse conversion.
@@ -14,15 +15,45 @@ class CEntry(object):
     # what each entry has
     ATTRIBUTES = ["type", "uid", "date", "amount", "description"]
 
-    def __init__(self, from_string=""):
+    def __init__(self, init_from=None):
         self.type = ""
         self.uid = ""
-        self.date = datetime.date.today()
-        self.amount = 0.0
+        self._date = datetime.date.today()
+        self._amount = 0.0
         self.description = ""
 
-        if from_string:
-            self.takeFromString(from_string)
+        if init_from is not None:
+            if type(init_from) == types.StringType:
+                self.takeFromString(init_from)
+            elif type(init_from) == types.DictType:
+                self.takeFromDict(init_from)
+            else:
+                raise Exception("unknown type")
+
+    def _getDate(self):
+        return self._date
+
+    def _setDate(self, d):
+        if type(d) == types.StringType:
+            # parse out YYYY-MM-DD format
+            y = d[0:4]
+            m = d[5:7]
+            d = d[8:10]
+            self._date = datetime.date(int(y), int(m), int(d))
+        elif type(d) == datetime.date:
+            self._date = d
+        else:
+            raise Exception("unknown type")
+
+    date = property(_getDate, _setDate)
+
+    def _getAmount(self):
+        return self._amount
+
+    def _setAmount(self, a):
+        self._amount = float(a)
+
+    amount = property(_getAmount, _setAmount)
 
     def __str__(self):
         return "%s %s %s {%s} %s" % (self.uid, self.date,
@@ -37,6 +68,13 @@ class CEntry(object):
         self.amount = float(m.group(5))
         self.type = m.group(6)
         self.description = m.group(7)
+
+    def takeFromDict(self, d):
+        self.type = d["type"]
+        self.uid = d["uid"]
+        self.date = d["date"]
+        self.amount = d["amount"]
+        self.description = d["description"]
 
 
 def CEntryFromQFX(qfx_stmttrn):

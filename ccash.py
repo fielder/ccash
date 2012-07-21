@@ -144,8 +144,13 @@ class TableController(QtCore.QObject):
                     self.table.insertColumn(col_idx)
                     self.table.setHorizontalHeaderItem(col_idx, QtGui.QTableWidgetItem(attr))
 
+        current_uids = [ce.uid for ce in self.entries]
+
         for e in entries:
-            #TODO: ensure we don't add repeated entries
+            if e.uid in current_uids:
+                # ensure we don't add duplicate entries
+                continue
+            current_uids.append(e.uid)
 
             row = self.table.rowCount()
             self.table.insertRow(row)
@@ -159,8 +164,11 @@ class TableController(QtCore.QObject):
         ret = []
 
         for row in xrange(self.table.rowCount()):
-            #TODO: ...
-            pass
+            d = {}
+            for attr in centry.CEntry.ATTRIBUTES:
+                d[attr] = str(self.table.item(row, self._columnIndexForLabel(attr)).text())
+
+            ret.append(centry.CEntry(d))
 
         return ret
 
