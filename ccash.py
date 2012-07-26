@@ -11,11 +11,11 @@ import cfile
 import centry
 import qfx
 
-#TODO: set some column read-only (all columns except type)
 #TODO: when an entry's type is edited, check it is valid
 #TODO: allow columns to be reordered
 #TODO: search bar to jump to an entry row
 #TODO: when an entry changes, update charts
+#TODO: ensure user-modified type names are valid and not duplicated
 
 
 class TypesDockWidget(QtGui.QWidget):
@@ -150,16 +150,21 @@ class TableController(QtCore.QObject):
         while self.table.rowCount() > 0:
             self.table.removeRow(0)
 
+    def _ensureColumnsExist(self, col_titles):
+        # note that we somewhat hard-code some columns to appear in a
+        # certain order here, but only add the columns if the attributes
+        # actually exist in the entries
+        for title in ["amount", "date", "type", "description", "uid"] + col_titles:
+            if title not in self._columnTitles() and title in col_titles:
+                col = len(self._columnTitles())
+                self.table.insertColumn(col)
+                self.table.setHorizontalHeaderItem(col, QtGui.QTableWidgetItem(title))
+
     def addEntries(self, entries):
         if not entries:
             return
 
-        # ensure we have the correct columns
-        for attr in entries[0].ATTRIBUTES:
-            if attr not in self._columnTitles():
-                col = len(self._columnTitles())
-                self.table.insertColumn(col)
-                self.table.setHorizontalHeaderItem(col, QtGui.QTableWidgetItem(attr))
+        self._ensureColumnsExist(entries[0].ATTRIBUTES)
 
         current_uids = [ce.uid for ce in self.entries]
 
@@ -173,8 +178,16 @@ class TableController(QtCore.QObject):
             self.table.insertRow(row)
 
             for attr in e.ATTRIBUTES:
-                self.table.setItem(row, self._columnIndexForLabel(attr),
-                                   QtGui.QTableWidgetItem(str(getattr(e, attr))))
+                wi = QtGui.QTableWidgetItem(str(getattr(e, attr)))
+
+                # only the type column is user-modifiable
+                if attr != "type":
+                    wi.setFlags(wi.flags() & ~QtCore.Qt.ItemIsEditable)
+
+                self.table.setItem(row, self._columnIndexForLabel(attr), wi)
+
+        if "description" in self._columnTitles():
+            self.table.resizeColumnToContents(self._columnTitles().index("description"))
 
     @property
     def entries(self):
@@ -234,7 +247,7 @@ class MainWin(QtGui.QMainWindow):
 
         # Window stuff
         self.setWindowTitle("CCash")
-        self.resize(800, 600)
+        self.resize(1024, 600)
         self.show()
 
 
