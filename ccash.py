@@ -17,6 +17,7 @@ import qfx
 #TODO: when an entry changes, update charts
 #TODO: ensure user-modified type names are valid and not duplicated
 #TODO: if rows are selected, show some aggregate stats on those entries, maybe in status bar
+#TODO: allow all charts to show only a range of entries
 
 
 class TypesDockWidget(QtGui.QWidget):
@@ -349,6 +350,10 @@ class MainCont(object):
                                                  filter="CCash (*.ccash)")
         if not path:
             return
+        path = str(path)
+
+        if os.path.splitext(path)[1] != ".ccash":
+            path += ".ccash"
 
         self.save(path)
 
