@@ -16,6 +16,7 @@ import qfx
 #TODO: search bar to jump to an entry row
 #TODO: when an entry changes, update charts
 #TODO: ensure user-modified type names are valid and not duplicated
+#TODO: if rows are selected, show some aggregate stats on those entries, maybe in status bar
 
 
 class TypesDockWidget(QtGui.QWidget):
@@ -183,6 +184,9 @@ class TableController(QtCore.QObject):
                 # only the type column is user-modifiable
                 if attr != "type":
                     wi.setFlags(wi.flags() & ~QtCore.Qt.ItemIsEditable)
+
+                if e.amount > 0.0:
+                    wi.setBackgroundColor(QtGui.QColor(160, 255, 160))
 
                 self.table.setItem(row, self._columnIndexForLabel(attr), wi)
 
