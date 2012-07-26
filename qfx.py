@@ -1,6 +1,5 @@
+import re
 
-#TODO: Some NAME and MEMO fields hame "&amp;" strings in there to represent &
-#      Replace with a single &
 
 def parseTransactionsFromFile(path):
     """
@@ -41,7 +40,7 @@ def parseTransactionsFromFile(path):
                 stmttrn = None
             else:
                 gidx = line.index(">")
-                stmttrn[line[1:gidx]] = line[gidx + 1:]
+                stmttrn[line[1:gidx]] = re.sub("&amp;", "&", line[gidx + 1:])
 
         elif line == "<STMTTRN>":
             stmttrn = {}

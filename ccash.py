@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import os
 import collections
 
 from PyQt4 import QtCore
@@ -9,6 +10,12 @@ from PyQt4 import QtGui
 import cfile
 import centry
 import qfx
+
+#TODO: set some column read-only (all columns except type)
+#TODO: when an entry's type is edited, check it is valid
+#TODO: allow columns to be reordered
+#TODO: search bar to jump to an entry row
+#TODO: when an entry changes, update charts
 
 
 class TypesDockWidget(QtGui.QWidget):
@@ -22,7 +29,6 @@ class TypesDockWidget(QtGui.QWidget):
         # Types table
         self.table = QtGui.QTableWidget(0, 2)
         self.table.setHorizontalHeaderLabels(["Name", "Regex"])
-        self.table.setAlternatingRowColors(True)
 
         self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         a = QtGui.QAction("&New", self)
@@ -123,6 +129,7 @@ class TableController(QtCore.QObject):
         super(TableController, self).__init__()
 
         self.table = QtGui.QTableWidget()
+        self.table.setAlternatingRowColors(True)
 
     def _columnTitles(self):
         return [str(self.table.horizontalHeaderItem(col).text()) for col in xrange(self.table.columnCount())]
@@ -137,12 +144,15 @@ class TableController(QtCore.QObject):
             self.table.removeRow(0)
 
     def addEntries(self, entries):
-        if entries:
-            for attr in entries[0].ATTRIBUTES:
-                if attr not in self._columnTitles():
-                    col_idx = len(self._columnTitles())
-                    self.table.insertColumn(col_idx)
-                    self.table.setHorizontalHeaderItem(col_idx, QtGui.QTableWidgetItem(attr))
+        if not entries:
+            return
+
+        # ensure we have the correct columns
+        for attr in entries[0].ATTRIBUTES:
+            if attr not in self._columnTitles():
+                col = len(self._columnTitles())
+                self.table.insertColumn(col)
+                self.table.setHorizontalHeaderItem(col, QtGui.QTableWidgetItem(attr))
 
         current_uids = [ce.uid for ce in self.entries]
 
@@ -223,6 +233,12 @@ class MainWin(QtGui.QMainWindow):
 
 class MainCont(object):
     def __init__(self):
+        # Path to most recently opened or saved file
+        self._recent_path = ""
+
+        # Path to most recently *added* file
+        self._recent_qfx_path = ""
+
         # Main table controller
         self.table_cont = TableController()
 
@@ -255,6 +271,13 @@ class MainCont(object):
         self.table_cont.addEntries(entries)
         self.types_cont.addTypes(types)
 
+        self._recent_path = str(path)
+
+    def save(self, path):
+        cfile.writeToFile(path, self.types_cont.types, self.table_cont.entries)
+
+        self._recent_path = str(path)
+
     def _confirmIfChanges(self):
         #TODO: prompt if the user has made changes
         return True
@@ -271,6 +294,7 @@ class MainCont(object):
 
         path = QtGui.QFileDialog.getOpenFileName(parent=self._win,
                                                  caption="Open File",
+                                                 directory=os.path.dirname(self._recent_path),
                                                  filter="CCash (*.ccash)")
         if not path:
             return
@@ -284,23 +308,36 @@ class MainCont(object):
         self._resetUI()
 
     def _saveFile(self):
-        #TODO: ...
-        pass
+        if not self._recent_path:
+            self._saveFileAs()
+        else:
+            self.save(self._recent_path)
 
     def _saveFileAs(self):
-        #TODO: ...
-        pass
+        path = QtGui.QFileDialog.getSaveFileName(parent=self._win,
+                                                 caption="Save File",
+                                                 directory=os.path.dirname(self._recent_path),
+                                                 filter="CCash (*.ccash)")
+        if not path:
+            return
+
+        self.save(path)
 
     def _addEntriesFromQFX(self):
         path = QtGui.QFileDialog.getOpenFileName(parent=self._win,
                                                  caption="Open File",
+                                                 directory=os.path.dirname(self._recent_qfx_path),
                                                  filter="QFX (*.qfx)")
         if not path:
             return
 
         entries = [centry.CEntryFromQFX(qfx_stmttrn) for qfx_stmttrn in qfx.parseTransactionsFromFile(path)]
 
+        #TODO: autotype the entries
+
         self.table_cont.addEntries(entries)
+
+        self._recent_qfx_path = str(path)
 
 
 if __name__ == "__main__":

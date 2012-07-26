@@ -27,6 +27,8 @@ class CEntry(object):
                 self.takeFromString(init_from)
             elif type(init_from) == types.DictType:
                 self.takeFromDict(init_from)
+            elif type(init_from) == CEntry:
+                self.takeFromOther(init_from)
             else:
                 raise Exception("unknown type")
 
@@ -75,6 +77,13 @@ class CEntry(object):
         self.date = d["date"]
         self.amount = d["amount"]
         self.description = d["description"]
+
+    def takeFromOther(self, o):
+        self.type = o.type
+        self.uid = o.uid
+        self.date = o.date
+        self.amount = o.amount
+        self.description = o.description
 
 
 def CEntryFromQFX(qfx_stmttrn):
