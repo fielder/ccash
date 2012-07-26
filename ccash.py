@@ -10,14 +10,17 @@ from PyQt4 import QtGui
 import cfile
 import centry
 import qfx
+import charts
 
-#TODO: when an entry's type is edited, check it is valid
+#TODO: when an entry's type is edited, check it is valid, or maybe just highlight red if invalid
 #TODO: allow columns to be reordered
 #TODO: search bar to jump to an entry row
 #TODO: when an entry changes, update charts
 #TODO: ensure user-modified type names are valid and not duplicated
 #TODO: if rows are selected, show some aggregate stats on those entries, maybe in status bar
-#TODO: allow all charts to show only a range of entries
+#TODO: allow all charts to show data from only a range of entries
+#TODO: toolbar allowing user to open a chart w/ selected entries
+#TODO: right-click context menu on entries to open charts
 
 
 class TypesDockWidget(QtGui.QWidget):
