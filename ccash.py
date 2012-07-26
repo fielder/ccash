@@ -20,6 +20,7 @@ import qfx
 
 class TypesDockWidget(QtGui.QWidget):
     typesDeleted = QtCore.pyqtSignal(list)
+    typifyAll = QtCore.pyqtSignal()
 
     def __init__(self):
         super(TypesDockWidget, self).__init__()
@@ -38,11 +39,15 @@ class TypesDockWidget(QtGui.QWidget):
         self.addAction(a)
         a.triggered.connect(self._deleteSelectedRows)
 
-        # Button
+        # Buttons
         hbox = QtGui.QHBoxLayout()
         b = QtGui.QPushButton("New")
         b.clicked.connect(self._addNewEmptyType)
         b.setToolTip("Create a new entry type")
+        hbox.addWidget(b)
+        b = QtGui.QPushButton("Apply")
+        b.clicked.connect(self.typifyAll.emit)
+        b.setToolTip("Apply typing to all entries")
         hbox.addWidget(b)
         hbox.addStretch()
 
@@ -105,6 +110,7 @@ class TypesDockWidget(QtGui.QWidget):
 
 class TypesDockController(QtCore.QObject):
     typesDeleted = QtCore.pyqtSignal(list)
+    typifyAll = QtCore.pyqtSignal()
 
     def __init__(self):
         super(TypesDockController, self).__init__()
@@ -112,6 +118,7 @@ class TypesDockController(QtCore.QObject):
         self.dock = QtGui.QDockWidget()
         self.dock.setWidget(TypesDockWidget())
         self.dock.widget().typesDeleted.connect(self.typesDeleted.emit)
+        self.dock.widget().typifyAll.connect(self.typifyAll.emit)
 
     @property
     def types(self):
@@ -245,6 +252,7 @@ class MainCont(object):
         # Types dock controller
         self.types_cont = TypesDockController()
         self.types_cont.typesDeleted.connect(self._typesDeleted)
+        self.types_cont.typifyAll.connect(self._typifyAll)
 
         # Main window signals
         self._win = MainWin(self.table_cont.table, self.types_cont.dock)
@@ -261,6 +269,10 @@ class MainCont(object):
 
     def _typesDeleted(self, typenames):
         #TODO: unset entry types that had their type deleted
+        pass
+
+    def _typifyAll(self):
+        #TODO: go through and reset all entry types based on current autotype filters
         pass
 
     def load(self, path):
