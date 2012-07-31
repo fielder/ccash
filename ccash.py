@@ -17,7 +17,6 @@ import charts
 #TODO: search bar to jump to an entry row
 #TODO: when an entry changes, update charts
 #TODO: ensure user-modified type names are valid and not duplicated
-#TODO: if rows are selected, show some aggregate stats on those entries, maybe in status bar
 #TODO: allow all charts to show data from only a range of entries
 #TODO: toolbar allowing user to open a chart w/ selected entries
 #TODO: right-click context menu on entries to open charts
@@ -113,6 +112,7 @@ class TypesDockWidget(QtGui.QWidget):
             self._appendRow(name, regex)
 
 
+#TODO: can probably get rid of this middle-man class
 class TypesDockController(QtCore.QObject):
     typesDeleted = QtCore.pyqtSignal(list)
     typifyAll = QtCore.pyqtSignal()
@@ -137,11 +137,14 @@ class TypesDockController(QtCore.QObject):
 
 
 class TableController(QtCore.QObject):
+    selectionChanged = QtCore.pyqtSignal()
+
     def __init__(self):
         super(TableController, self).__init__()
 
         self.table = QtGui.QTableWidget()
         self.table.setAlternatingRowColors(True)
+        self.table.itemSelectionChanged.connect(self.selectionChanged.emit)
 
     def _columnTitles(self):
         return [str(self.table.horizontalHeaderItem(col).text()) for col in xrange(self.table.columnCount())]
@@ -210,6 +213,14 @@ class TableController(QtCore.QObject):
 
         return ret
 
+    @property
+    def selected_entries(self):
+        rows = set()
+        for sr in self.table.selectedRanges():
+            rows.update(xrange(sr.topRow(), sr.bottomRow() + 1))
+
+        return [self.entries[row] for row in sorted(rows)]
+
 
 class MainWin(QtGui.QMainWindow):
     newFile = QtCore.pyqtSignal()
@@ -221,6 +232,9 @@ class MainWin(QtGui.QMainWindow):
 
     def __init__(self, table, dock):
         super(MainWin, self).__init__()
+
+        self._sbar_total_entries_label = QtGui.QLabel()
+        self._sbar_selected_label = QtGui.QLabel()
 
         # Main table
         self.setCentralWidget(table)
@@ -253,10 +267,22 @@ class MainWin(QtGui.QMainWindow):
         a = m.addAction("&Types")
         a.triggered.connect(dock.show)
 
+        # Status bar
+        self.statusBar().addPermanentWidget(self._sbar_total_entries_label)
+        self.statusBar().addWidget(self._sbar_selected_label)
+
         # Window stuff
         self.setWindowTitle("CCash")
         self.resize(1024, 600)
         self.show()
+
+    def updateStatusBar(self, all_entries, selected):
+        num_ent = len(all_entries)
+        self._sbar_total_entries_label.setText("%d entries" % num_ent)
+
+        num_sel = len(selected)
+        cost_sel = sum([e.amount for e in selected])
+        self._sbar_selected_label.setText("%d selected, $%.2f" % (num_sel, cost_sel))
 
 
 class MainCont(object):
@@ -269,6 +295,7 @@ class MainCont(object):
 
         # Main table controller
         self.table_cont = TableController()
+        self.table_cont.selectionChanged.connect(self.updateStatusBar)
 
         # Types dock controller
         self.types_cont = TypesDockController()
@@ -284,9 +311,13 @@ class MainCont(object):
         self._win.saveFileAs.connect(self._saveFileAs)
         self._win.addEntries.connect(self._addEntriesFromQFX)
 
+        self._resetUI()
+
     def _resetUI(self):
         self.table_cont.clear()
         self.types_cont.clear()
+
+        self.updateStatusBar()
 
     def _typesDeleted(self, typenames):
         #TODO: unset entry types that had their type deleted
@@ -303,6 +334,7 @@ class MainCont(object):
 
         self.table_cont.addEntries(entries)
         self.types_cont.addTypes(types)
+        self.updateStatusBar()
 
         self._recent_path = str(path)
 
@@ -373,8 +405,12 @@ class MainCont(object):
         #TODO: autotype the entries
 
         self.table_cont.addEntries(entries)
+        self.updateStatusBar()
 
         self._recent_qfx_path = str(path)
+
+    def updateStatusBar(self):
+        self._win.updateStatusBar(self.table_cont.entries, self.table_cont.selected_entries)
 
 
 if __name__ == "__main__":
