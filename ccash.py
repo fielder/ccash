@@ -112,30 +112,6 @@ class TypesDockWidget(QtGui.QWidget):
             self._appendRow(name, regex)
 
 
-#TODO: can probably get rid of this middle-man class
-class TypesDockController(QtCore.QObject):
-    typesDeleted = QtCore.pyqtSignal(list)
-    typifyAll = QtCore.pyqtSignal()
-
-    def __init__(self):
-        super(TypesDockController, self).__init__()
-
-        self.dock = QtGui.QDockWidget()
-        self.dock.setWidget(TypesDockWidget())
-        self.dock.widget().typesDeleted.connect(self.typesDeleted.emit)
-        self.dock.widget().typifyAll.connect(self.typifyAll.emit)
-
-    @property
-    def types(self):
-        return self.dock.widget().types
-
-    def clear(self):
-        self.dock.widget().clear()
-
-    def addTypes(self, types):
-        self.dock.widget().addTypes(types)
-
-
 class TableController(QtCore.QObject):
     selectionChanged = QtCore.pyqtSignal()
 
@@ -298,12 +274,13 @@ class MainCont(object):
         self.table_cont.selectionChanged.connect(self.updateStatusBar)
 
         # Types dock controller
-        self.types_cont = TypesDockController()
-        self.types_cont.typesDeleted.connect(self._typesDeleted)
-        self.types_cont.typifyAll.connect(self._typifyAll)
+        self._dock = QtGui.QDockWidget()
+        self._dock.setWidget(TypesDockWidget())
+        self._dock.widget().typesDeleted.connect(self._typesDeleted)
+        self._dock.widget().typifyAll.connect(self._typifyAll)
 
         # Main window signals
-        self._win = MainWin(self.table_cont.table, self.types_cont.dock)
+        self._win = MainWin(self.table_cont.table, self._dock)
         self._win.newFile.connect(self._newFile)
         self._win.openFile.connect(self._loadFromPath)
         self._win.closeFile.connect(self._closeFile)
@@ -315,7 +292,7 @@ class MainCont(object):
 
     def _resetUI(self):
         self.table_cont.clear()
-        self.types_cont.clear()
+        self._dock.widget().clear()
 
         self.updateStatusBar()
 
@@ -333,13 +310,13 @@ class MainCont(object):
         self._resetUI()
 
         self.table_cont.addEntries(entries)
-        self.types_cont.addTypes(types)
+        self._dock.widget().addTypes(types)
         self.updateStatusBar()
 
         self._recent_path = str(path)
 
     def save(self, path):
-        cfile.writeToFile(path, self.types_cont.types, self.table_cont.entries)
+        cfile.writeToFile(path, self._dock.widget().types, self.table_cont.entries)
 
         self._recent_path = str(path)
 
