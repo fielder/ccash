@@ -195,7 +195,11 @@ class TableController(QtCore.QObject):
         for sr in self.table.selectedRanges():
             rows.update(xrange(sr.topRow(), sr.bottomRow() + 1))
 
-        return [self.entries[row] for row in sorted(rows)]
+        # cache off the entries so we don't regenerate the list during
+        # every iteration in the list comprehension
+        entries = self.entries
+
+        return [entries[row] for row in sorted(rows)]
 
 
 class MainWin(QtGui.QMainWindow):
