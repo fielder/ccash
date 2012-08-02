@@ -114,6 +114,7 @@ class TypesDockWidget(QtGui.QWidget):
 
 class TableController(QtCore.QObject):
     selectionChanged = QtCore.pyqtSignal()
+    entryChanged = QtCore.pyqtSignal()
 
     def __init__(self):
         super(TableController, self).__init__()
@@ -121,6 +122,9 @@ class TableController(QtCore.QObject):
         self.table = QtGui.QTableWidget()
         self.table.setAlternatingRowColors(True)
         self.table.itemSelectionChanged.connect(self.selectionChanged.emit)
+        self.table.itemChanged.connect(self._entryChanged)
+
+        self._cached_entries = None
 
     def _columnTitles(self):
         return [str(self.table.horizontalHeaderItem(col).text()) for col in xrange(self.table.columnCount())]
@@ -133,6 +137,15 @@ class TableController(QtCore.QObject):
             self.table.removeColumn(0)
         while self.table.rowCount() > 0:
             self.table.removeRow(0)
+
+        # invalidate the entry cache
+        self._cached_entries = None
+
+    def _entryChanged(self, item):
+        # invalidate the entry cache
+        self._cached_entries = None
+
+        self.entryChanged.emit()
 
     def _ensureColumnsExist(self, col_titles):
         # note that we somewhat hard-code some columns to appear in a
@@ -176,8 +189,15 @@ class TableController(QtCore.QObject):
         if "description" in self._columnTitles():
             self.table.resizeColumnToContents(self._columnTitles().index("description"))
 
+        # invalidate the entry cache
+        self._cached_entries = None
+
     @property
     def entries(self):
+        # this method can be expensive; cache
+        if self._cached_entries is not None:
+            return self._cached_entries
+
         ret = []
 
         for row in xrange(self.table.rowCount()):
@@ -186,6 +206,8 @@ class TableController(QtCore.QObject):
                 d[attr] = str(self.table.item(row, self._columnIndexForLabel(attr)).text())
 
             ret.append(centry.CEntry(d))
+
+        self._cached_entries = ret
 
         return ret
 
