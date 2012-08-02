@@ -165,6 +165,8 @@ class TableController(QtCore.QObject):
 
         current_uids = [ce.uid for ce in self.entries]
 
+        entries_added = False
+
         for e in entries:
             if e.uid in current_uids:
                 # ensure we don't add duplicate entries
@@ -186,11 +188,14 @@ class TableController(QtCore.QObject):
 
                 self.table.setItem(row, self._columnIndexForLabel(attr), wi)
 
-        if "description" in self._columnTitles():
-            self.table.resizeColumnToContents(self._columnTitles().index("description"))
+            entries_added = True
 
-        # invalidate the entry cache
-        self._cached_entries = None
+        if entries_added:
+            if "description" in self._columnTitles():
+                self.table.resizeColumnToContents(self._columnTitles().index("description"))
+
+            # invalidate the entry cache
+            self._cached_entries = None
 
     @property
     def entries(self):
