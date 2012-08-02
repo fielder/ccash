@@ -29,8 +29,6 @@ class TypesDockWidget(QtGui.QWidget):
     def __init__(self):
         super(TypesDockWidget, self).__init__()
 
-        self.table = None
-
         # Types table
         self.table = QtGui.QTableWidget(0, 2)
         self.table.setHorizontalHeaderLabels(["Name", "Regex"])
@@ -138,12 +136,10 @@ class TableController(QtCore.QObject):
         while self.table.rowCount() > 0:
             self.table.removeRow(0)
 
-        # invalidate the entry cache
-        self._cached_entries = None
+        self._cached_entries = None # invalidate the cache
 
     def _entryChanged(self, item):
-        # invalidate the entry cache
-        self._cached_entries = None
+        self._cached_entries = None # invalidate the cache
 
         self.entryChanged.emit()
 
@@ -194,8 +190,7 @@ class TableController(QtCore.QObject):
             if "description" in self._columnTitles():
                 self.table.resizeColumnToContents(self._columnTitles().index("description"))
 
-            # invalidate the entry cache
-            self._cached_entries = None
+            self._cached_entries = None # invalidate the cache
 
     @property
     def entries(self):
