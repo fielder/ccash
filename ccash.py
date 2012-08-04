@@ -13,7 +13,6 @@ import centry
 import qfx
 import charts
 
-#TODO: when an entry's type is edited, check it is valid, or maybe just highlight red if invalid
 #TODO: allow columns to be reordered
 #TODO: search bar to jump to an entry row
 #TODO: when an entry changes, update charts
@@ -23,6 +22,7 @@ import charts
 #TODO: right-click context menu on entries to open charts
 #TODO: use proper menu actions so ctrl-s style shortcuts work
 #TODO: when a type is selected, highlight entries
+#TODO: keep rows sorted by date
 
 def typeStringForDescription(descr, comp_regexes):
     for typename, comp_regex in comp_regexes.iteritems():
@@ -129,7 +129,6 @@ class TableController(QtCore.QObject):
         self.table = QtGui.QTableWidget()
         self.table.setAlternatingRowColors(True)
         self.table.itemSelectionChanged.connect(self.selectionChanged.emit)
-        self.table.itemChanged.connect(self._entryChanged)
 
         self._cached_entries = None
 
@@ -147,11 +146,6 @@ class TableController(QtCore.QObject):
 
         self._cached_entries = None # invalidate the cache
 
-    def _entryChanged(self, item):
-        self._cached_entries = None # invalidate the cache
-
-        self.entryChanged.emit()
-
     def typifyEntries(self, types):
         descr_col_idx = self._columnIndexForLabel("description")
         type_col_idx = self._columnIndexForLabel("type")
@@ -162,6 +156,8 @@ class TableController(QtCore.QObject):
             descr = str(self.table.item(row, descr_col_idx).text())
             new_type = typeStringForDescription(descr, comp_regexes)
             self.table.item(row, type_col_idx).setText(new_type)
+
+        self._cached_entries = None # invalidate the cache
 
     def _ensureColumnsExist(self, col_titles):
         # note that we somewhat hard-code some columns to appear in a
@@ -195,9 +191,7 @@ class TableController(QtCore.QObject):
             for attr in e.ATTRIBUTES:
                 wi = QtGui.QTableWidgetItem(str(getattr(e, attr)))
 
-                # only the type column is user-modifiable
-                if attr != "type":
-                    wi.setFlags(wi.flags() & ~QtCore.Qt.ItemIsEditable)
+                wi.setFlags(wi.flags() & ~QtCore.Qt.ItemIsEditable)
 
                 if e.amount > 0.0:
                     wi.setBackgroundColor(QtGui.QColor(160, 255, 160))
@@ -348,8 +342,7 @@ class MainCont(object):
         self.updateStatusBar()
 
     def _typesDeleted(self, typenames):
-        #TODO: unset entry types that had their type deleted
-        pass
+        self._typifyAll()
 
     def _typifyAll(self):
         self.table_cont.typifyEntries(self._dock.widget().types)
