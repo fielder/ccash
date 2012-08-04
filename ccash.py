@@ -3,6 +3,7 @@
 import sys
 import os
 import collections
+import re
 
 from PyQt4 import QtCore
 from PyQt4 import QtGui
@@ -20,6 +21,8 @@ import charts
 #TODO: allow all charts to show data from only a range of entries
 #TODO: toolbar allowing user to open a chart w/ selected entries
 #TODO: right-click context menu on entries to open charts
+#TODO: use proper menu actions so ctrl-s style shortcuts work
+#TODO: when a type is selected, highlight entries
 
 
 class TypesDockWidget(QtGui.QWidget):
@@ -143,6 +146,28 @@ class TableController(QtCore.QObject):
 
         self.entryChanged.emit()
 
+    def _typeStringForDescription(self, descr, comp_regexes):
+        """
+        Apply type regexes to a description.
+        """
+
+        for typename, comp_regex in comp_regexes.iteritems():
+            if comp_regex.match(descr):
+                return typename
+
+        return ""
+
+    def typifyEntries(self, types):
+        descr_col_idx = self._columnIndexForLabel("description")
+        type_col_idx = self._columnIndexForLabel("type")
+
+        comp_regexes = { typename: re.compile(regex) for typename, regex in types.iteritems() }
+
+        for row in xrange(self.table.rowCount()):
+            descr = str(self.table.item(row, descr_col_idx).text())
+            new_type = self._typeStringForDescription(descr, comp_regexes)
+            self.table.item(row, type_col_idx).setText(new_type)
+
     def _ensureColumnsExist(self, col_titles):
         # note that we somewhat hard-code some columns to appear in a
         # certain order here, but only add the columns if the attributes
@@ -232,6 +257,7 @@ class MainWin(QtGui.QMainWindow):
         super(MainWin, self).__init__()
 
         self._sbar_total_entries_label = QtGui.QLabel()
+        self._sbar_untyped_entries_label = QtGui.QLabel()
         self._sbar_selected_label = QtGui.QLabel()
 
         # Main table
@@ -267,6 +293,7 @@ class MainWin(QtGui.QMainWindow):
 
         # Status bar
         self.statusBar().addPermanentWidget(self._sbar_total_entries_label)
+        self.statusBar().addWidget(self._sbar_untyped_entries_label)
         self.statusBar().addWidget(self._sbar_selected_label)
 
         # Window stuff
@@ -277,6 +304,13 @@ class MainWin(QtGui.QMainWindow):
     def updateStatusBar(self, all_entries, selected):
         num_ent = len(all_entries)
         self._sbar_total_entries_label.setText("%d entries" % num_ent)
+
+        nu = len(filter(lambda e: not e.type, all_entries))
+        if all_entries:
+            nu_p = int((float(nu) / len(all_entries)) * 100.0)
+        else:
+            nu_p = 0
+        self._sbar_untyped_entries_label.setText("%d untyped entries (%d%%)" % (nu, nu_p))
 
         num_sel = len(selected)
         cost_sel = sum([e.amount for e in selected])
@@ -323,8 +357,8 @@ class MainCont(object):
         pass
 
     def _typifyAll(self):
-        #TODO: go through and reset all entry types based on current autotype filters
-        pass
+        self.table_cont.typifyEntries(self._dock.widget().types)
+        self.updateStatusBar()
 
     def load(self, path):
         types, entries = cfile.loadFromFile(path)
