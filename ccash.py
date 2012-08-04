@@ -24,6 +24,12 @@ import charts
 #TODO: use proper menu actions so ctrl-s style shortcuts work
 #TODO: when a type is selected, highlight entries
 
+def typeStringForDescription(descr, comp_regexes):
+    for typename, comp_regex in comp_regexes.iteritems():
+        if comp_regex.match(descr):
+            return typename
+    return ""
+
 
 class TypesDockWidget(QtGui.QWidget):
     typesDeleted = QtCore.pyqtSignal(list)
@@ -146,17 +152,6 @@ class TableController(QtCore.QObject):
 
         self.entryChanged.emit()
 
-    def _typeStringForDescription(self, descr, comp_regexes):
-        """
-        Apply type regexes to a description.
-        """
-
-        for typename, comp_regex in comp_regexes.iteritems():
-            if comp_regex.match(descr):
-                return typename
-
-        return ""
-
     def typifyEntries(self, types):
         descr_col_idx = self._columnIndexForLabel("description")
         type_col_idx = self._columnIndexForLabel("type")
@@ -165,7 +160,7 @@ class TableController(QtCore.QObject):
 
         for row in xrange(self.table.rowCount()):
             descr = str(self.table.item(row, descr_col_idx).text())
-            new_type = self._typeStringForDescription(descr, comp_regexes)
+            new_type = typeStringForDescription(descr, comp_regexes)
             self.table.item(row, type_col_idx).setText(new_type)
 
     def _ensureColumnsExist(self, col_titles):
@@ -435,7 +430,9 @@ class MainCont(object):
 
         entries = [centry.CEntryFromQFX(qfx_stmttrn) for qfx_stmttrn in qfx.parseTransactionsFromFile(path)]
 
-        #TODO: autotype the entries
+        comp_regexes = { typename: re.compile(regex) for typename, regex in self._dock.widget().types.iteritems() }
+        for e in entries:
+            e.type = typeStringForDescription(e.description, comp_regexes)
 
         self.table_cont.addEntries(entries)
         self.updateStatusBar()
